@@ -1,0 +1,65 @@
+#!/usr/bin/python3
+
+import os, sys
+from os.path import join
+import filecmp
+
+def printerr(*msg):
+    print(*msg, file=sys.stderr)
+
+class DiffEx(Exception):
+
+    def __init__(self, dcmp, files, errmsg):
+        super().__init__()
+        self.dcmp   = dcmp
+        self.errmsg = errmsg
+        self.files  = files
+
+    def report(self):
+        printerr('Difference!')
+        printerr('  A:', self.dcmp.left)
+        printerr('  B:', self.dcmp.right)
+        printerr('  ' + self.errmsg)
+        for f in self.files:
+            printerr(' '*4 + f)
+
+def same_mode(file1, file2):
+    st1 = os.stat(file1, follow_symlinks=False)
+    st2 = os.stat(file2, follow_symlinks=False)
+    return st1.st_mode == st2.st_mode
+
+def check_same_content(dir1, dir2):
+
+    def check_empty_set(dcmp, files, errmsg):
+        if files:
+            raise DiffEx(dcmp, files, errmsg)
+    
+    def iterate(dcmp):
+        check_empty_set(dcmp, dcmp.left_only,    'Only in A:')
+        check_empty_set(dcmp, dcmp.right_only,   'Only in B:')
+        check_empty_set(dcmp, dcmp.diff_files,   'Different content:')
+        check_empty_set(dcmp, dcmp.common_funny, 'Different types:')
+        check_empty_set(dcmp, dcmp.funny_files,  'Cannot compare:')
+
+        for f in ['.'] + dcmp.same_files:
+            if not same_mode(join(dcmp.left, f), join(dcmp.right, f)):
+                raise DiffEx(dcmp, [f], 'Different mode:')
+
+        for d in dcmp.subdirs.values():
+            iterate(d)
+
+    iterate(filecmp.dircmp(dir1, dir2))
+
+if __name__ == '__main__':
+
+    if len(sys.argv) != 3:
+        printerr(f'Usage: {sys.argv[0]} <dirA> <dirB>')
+        printerr(f'Checks if two directories have identical content.')
+        sys.exit(1)
+
+    try:
+        check_same_content(sys.argv[1], sys.argv[2])
+        sys.exit(0)
+    except DiffEx as e:
+        e.report()
+        sys.exit(1)

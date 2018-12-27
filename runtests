@@ -1,0 +1,34 @@
+#!/bin/bash
+
+SRC_DIR=.
+OUT_DIR=$(mktemp -d tests.out.XXXXXX)
+
+run_test()
+{
+	local test_dir=$1
+	local name=$(basename $test_dir)
+	mkdir $OUT_DIR/$name
+	$SRC_DIR/mergedirs $test_dir/sources/* $OUT_DIR/$name || return $?
+	$SRC_DIR/cmpdirs $test_dir/expected $OUT_DIR/$name
+	local ret=$?
+	if [[ $ret -eq 0 ]]; then
+		rm -r $OUT_DIR/$name
+	fi
+	return $ret
+}
+
+ret=0
+
+for test_dir in $SRC_DIR/tests/*; do
+	run_test $test_dir
+	if [[ $? -ne 0 ]]; then
+		ret=1
+	fi
+done
+
+# TODO
+if [[ true || $ret -eq 0 ]]; then
+	rm -r $OUT_DIR
+fi
+
+exit $ret

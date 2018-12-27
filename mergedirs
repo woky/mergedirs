@@ -1,0 +1,20 @@
+#!/usr/bin/python3
+
+import sys
+
+def printerr(*msg):
+    print(*msg, file=sys.stderr)
+
+def merge_dirs(source_dirs, dest_dir):
+    seen = set()
+
+    # TODO
+    print('Merge:', ' '.join(source_dirs), '->', dest_dir)
+
+if __name__ == '__main__':
+
+    if len(sys.argv) < 3:
+        printerr(f'Usage: {sys.argv[0]} <src-dir> [<src-dir>...] <dest-dir>')
+        sys.exit(1)
+
+    merge_dirs(sys.argv[1:-1], sys.argv[-1])
