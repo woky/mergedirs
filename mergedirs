@@ -1,15 +1,50 @@
 #!/usr/bin/python3
 
-import sys
+import sys, os, stat
+from pathlib import Path
+
+from pprint import pprint
+import pdb
 
 def printerr(*msg):
     print(*msg, file=sys.stderr)
 
-def merge_dirs(source_dirs, dest_dir):
-    seen = set()
+class SourceItem:
+    def __init__(self, source_dir: Path, rel_path: Path):
+        self.source_dir = source_dir
+        self.rel_path = rel_path
+        self.path = source_dir / rel_path
+        self.stat = self.path.lstat()
+        if stat.S_ISLNK(self.stat.st_mode):
+            link_target = os.readlink(self.path)
+            target_path = rel_path.parent / link_target
+            target_path = Path(os.path.normpath(target_path))
+            if target_path.parts[0] == '..':
+                target_path = source_dir / target_path
+                target_path = target_path.resolve(strict=True)
+            if target_path.is_absolute():
+                self.path = target_path
+                self.stat = self.path.stat()
 
-    # TODO
-    print('Merge:', ' '.join(source_dirs), '->', dest_dir)
+def merge_source_dirs(source_dirs):
+    path_set = set()
+    items = []
+    for top_dir in source_dirs[::-1]:
+        top_path = Path(top_dir)
+        # keep top_path relative if not a symlink
+        if top_path.is_symlink():
+            top_path = top_path.resolve()
+        queue = [ top_path ]
+        while queue:
+            path = queue.pop()
+            rel_path = path.relative_to(top_path)
+            item = SourceItem(top_path, rel_path)
+            if rel_path not in path_set:
+                path_set.add(rel_path)
+                items.append(item)
+            if stat.S_ISDIR(item.stat.st_mode):
+                queue += item.path.iterdir()
+    return items, path_set
 
 if __name__ == '__main__':
 
@@ -17,4 +52,5 @@ if __name__ == '__main__':
         printerr(f'Usage: {sys.argv[0]} <src-dir> [<src-dir>...] <dest-dir>')
         sys.exit(1)
 
-    merge_dirs(sys.argv[1:-1], sys.argv[-1])
+    source_items, path_set = merge_source_dirs(sys.argv[1:-1])
+    pprint([ str(item.path) for item in source_items ])

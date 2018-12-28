@@ -19,7 +19,8 @@ run_test()
 
 ret=0
 
-for test_dir in $SRC_DIR/tests/*; do
+for test_dir in $SRC_DIR/tests/t*; do
+	echo "Running test $test_dir"
 	run_test $test_dir
 	if [[ $? -ne 0 ]]; then
 		ret=1
